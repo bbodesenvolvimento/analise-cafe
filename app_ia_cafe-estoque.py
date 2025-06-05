@@ -14,9 +14,9 @@ st.sidebar.header("📈 Parâmetros de Análise")
 valor_mercado = st.sidebar.number_input("💲 Valor de mercado da saca (R$)", min_value=0.0, value=2200.0, step=10.0)
 catacao_minima = st.sidebar.number_input("📌 Catação mínima desejada (%)", min_value=0.0, value=25.0, step=1.0)
 catacao_maxima = st.sidebar.number_input("🚫 Catação máxima permitida (%)", min_value=0.0, value=85.0, step=1.0)
-lucro_minimo = 60.0
+lucro_alvo_medio = 60.0
 custo_ideal_estoque = 2000.0
-volumes_alvo = [1000, 750, 500, 250]  # Prioridade para maiores volumes
+volumes_alvo = [1000, 750, 500, 250]
 
 if arquivo:
     df = pd.read_csv(arquivo)
@@ -55,17 +55,16 @@ if arquivo:
                         continue
                     custo_medio = sum(v * custo for v, custo in zip(volumes, custos)) / vol_total
                     lucro_por_saca = valor_mercado - custo_medio
-                    if lucro_por_saca >= lucro_minimo:
-                        ligas_multiplas.append({
-                            "Lotes combinados": ", ".join(lotes),
-                            "Volume Total": round(vol_total, 2),
-                            "Catação Média (%)": round(cat_media, 2),
-                            "Custo Médio (R$)": round(custo_medio, 2),
-                            "Lucro estimado/saca (R$)": round(lucro_por_saca, 2),
-                            "Meta de Volume": alvo
-                        })
-                        lotes_utilizados.update(lotes)
-                        break
+                    ligas_multiplas.append({
+                        "Lotes combinados": ", ".join(lotes),
+                        "Volume Total": round(vol_total, 2),
+                        "Catação Média (%)": round(cat_media, 2),
+                        "Custo Médio (R$)": round(custo_medio, 2),
+                        "Lucro estimado/saca (R$)": round(lucro_por_saca, 2),
+                        "Meta de Volume": alvo
+                    })
+                    lotes_utilizados.update(lotes)
+                    break
             else:
                 continue
             break
@@ -73,7 +72,11 @@ if arquivo:
     df_ligas = pd.DataFrame(ligas_multiplas)
 
     if not df_ligas.empty:
-        st.success(f"✅ {len(df_ligas)} estratégias encontradas com lucro ≥ R$ {lucro_minimo}")
+        media_lucro_total = df_ligas["Lucro estimado/saca (R$)"].mean()
+        if media_lucro_total >= lucro_alvo_medio:
+            st.success(f"✅ {len(df_ligas)} estratégias encontradas com lucro médio ≥ R$ {lucro_alvo_medio}")
+        else:
+            st.warning(f"⚠️ As estratégias geradas têm lucro médio de R$ {media_lucro_total:.2f}, abaixo da meta de R$ {lucro_alvo_medio}")
         st.dataframe(df_ligas)
 
         total_sacas = df_ligas["Volume Total"].sum()
@@ -84,6 +87,7 @@ if arquivo:
         st.metric("🔢 Total de sacas utilizadas", f"{total_sacas:.0f}")
         st.metric("🧮 Catação média geral (%)", f"{cat_media_total:.2f}")
         st.metric("💰 Custo médio geral (R$)", f"R${custo_medio_total:.2f}")
+        st.metric("📈 Lucro médio por saca (R$)", f"R${media_lucro_total:.2f}")
 
         csv_ligas = df_ligas.to_csv(index=False).encode("utf-8")
         st.download_button("⬇️ Baixar estratégias de venda", csv_ligas, "estrategias_lucro.csv", "text/csv")
